@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLC Assist — AI-Powered Structured Text Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <span class="logo-icon material-icons-outlined">memory</span>
+                    <h1>PLC Assist</h1>
+                </div>
+                <span class="badge">CODESYS</span>
+                <span class="badge badge-outline">IEC 61131-3</span>
+            </div>
+            <div class="header-right">
+                <span class="version">v1.0</span>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- Input Panel -->
+            <section class="input-panel">
+                <div class="panel-header">
+                    <span class="material-icons-outlined">edit_note</span>
+                    <h2>Describe Your Control Logic</h2>
+                </div>
+
+                <!-- Category Selection -->
+                <div class="categories">
+                    {% for cat in categories %}
+                    <button class="cat-btn {% if cat.id == 'general' %}active{% endif %}"
+                            data-category="{{ cat.id }}"
+                            onclick="selectCategory('{{ cat.id }}')">
+                        <span class="material-icons-outlined">{{ cat.icon }}</span>
+                        <span>{{ cat.name }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <!-- Description Input -->
+                <div class="input-group">
+                    <textarea id="description"
+                              placeholder="Example: Motor start/stop with overload protection, emergency stop, 3 retry attempts before lockout, and run feedback monitoring."
+                              rows="5"></textarea>
+                    <div class="input-footer">
+                        <button class="example-btn" onclick="loadExample()">
+                            <span class="material-icons-outlined">auto_fix_high</span>
+                            Load Example
+                        </button>
+                        <span class="char-count" id="charCount">0 chars</span>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="generate-btn" id="generateBtn" onclick="generate()">
+                    <span class="material-icons-outlined">bolt</span>
+                    Generate Structured Text
+                </button>
+
+                <!-- Loading State -->
+                <div class="loading" id="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Generating code with safety checks...</p>
+                </div>
+
+                <!-- Error State -->
+                <div class="error-box" id="errorBox" style="display: none;">
+                    <span class="material-icons-outlined">error_outline</span>
+                    <p id="errorText"></p>
+                </div>
+            </section>
+
+            <!-- Output Panel -->
+            <section class="output-panel" id="outputPanel" style="display: none;">
+
+                <!-- ST Code -->
+                <div class="output-section">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <span class="material-icons-outlined">code</span>
+                            <h3>Structured Text Code</h3>
+                        </div>
+                        <button class="copy-btn" onclick="copyCode()">
+                            <span class="material-icons-outlined">content_copy</span>
+                            Copy
+                        </button>
+                    </div>
+                    <pre class="code-block"><code id="codeOutput"></code></pre>
+                </div>
+
+                <!-- Variables Table -->
+                <div class="output-section">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <span class="material-icons-outlined">table_chart</span>
+                            <h3>Variable Declaration Table</h3>
+                        </div>
+                    </div>
+                    <div class="markdown-content" id="variablesOutput"></div>
+                </div>
+
+                <!-- Explanation -->
+                <div class="output-section">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <span class="material-icons-outlined">school</span>
+                            <h3>How It Works</h3>
+                        </div>
+                    </div>
+                    <div class="markdown-content" id="explanationOutput"></div>
+                </div>
+
+                <!-- Warnings -->
+                <div class="output-section warnings-section">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <span class="material-icons-outlined">warning_amber</span>
+                            <h3>Safety Warnings</h3>
+                        </div>
+                    </div>
+                    <div class="markdown-content" id="warningsOutput"></div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Built by <strong>Abdurakhmon Kuchkorov</strong> — Electrical Engineering, University of Debrecen</p>
+            <p class="footer-note">Always verify generated code in CODESYS before deploying to real equipment.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        const EXAMPLES = {{ examples | tojson }};
+    </script>
+</body>
+</html>
