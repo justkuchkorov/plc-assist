@@ -13,6 +13,9 @@ Writing Structured Text from scratch is slow and error-prone. Generic LLMs produ
 - **Safety-first** — emergency stops, fail-safe defaults, interlocks, and sensor validation baked in
 - **CODESYS V3.5+ compatible** — proper `PROGRAM`/`FUNCTION_BLOCK` structure, correct types (`REAL` not `float`), standard library FBs (TON, TOF, R_TRIG, etc.)
 - **Structured output** — code + variable table + step-by-step explanation + safety warnings
+- **Local validation layer** - checks generated ST for undeclared variables, invalid CODESYS types, block balance, syntax slips, and basic safety patterns
+- **Auto-repair pass** - if validation finds errors, the app asks the model to repair the code before showing it
+- **Curated few-shot examples** - original motor, PID, and valve examples feed the model clean CODESYS patterns before generation
 - **Retry logic** — handles Gemini API rate limits with exponential backoff
 
 ## Tech Stack
@@ -23,6 +26,7 @@ Writing Structured Text from scratch is slow and error-prone. Generic LLMs produ
 | LLM | Gemini 2.5 Flash |
 | Prompts | 3-layer system (IEC rules + CODESYS specifics + safety rules) |
 | Templates | Category-specific MD files guiding output structure |
+| Examples | Original few-shot Structured Text patterns for high-signal categories |
 | Frontend | Vanilla HTML/CSS/JS with Material Icons |
 
 ## Quick Start
@@ -30,7 +34,7 @@ Writing Structured Text from scratch is slow and error-prone. Generic LLMs produ
 ```bash
 git clone https://github.com/justkuchkorov/plc-assist.git
 cd plc-assist
-pip install flask google-genai python-dotenv
+pip install -r requirements.txt
 ```
 
 Create `.env`:
@@ -58,6 +62,8 @@ plc-assist/
 ├── app.py              Flask app — routes, categories, examples
 ├── config.py           API key + model config
 ├── generator.py        Gemini code generation + response parsing
+├── validator.py        Local ST validation + confidence scoring
+├── examples/           Few-shot examples injected by category
 ├── prompts/
 │   ├── system.md       IEC 61131-3 rules, naming conventions, output format
 │   ├── codesys.md      CODESYS-specific rules
@@ -76,8 +82,10 @@ plc-assist/
 
 ## Roadmap
 
-- [ ] Syntax validation (compile-check before returning)
-- [ ] Few-shot examples from real industrial projects
+- [x] Local validation (undeclared variables, CODESYS types, block balance, safety hints)
+- [x] Few-shot examples for motor, PID, and valve control
+- [ ] CODESYS compile-check before returning
+- [ ] Expand examples with license-reviewed real industrial patterns
 - [ ] Export to CODESYS `.export` format
 - [ ] Multi-language input (describe in any language, get ST code)
 - [ ] Code review mode (paste existing ST, get improvement suggestions)

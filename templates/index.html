@@ -21,7 +21,7 @@
                 <span class="badge badge-outline">IEC 61131-3</span>
             </div>
             <div class="header-right">
-                <span class="version">v1.0</span>
+                <span class="version">v2 validation</span>
             </div>
         </header>
 
@@ -41,6 +41,17 @@
                             onclick="selectCategory('{{ cat.id }}')">
                         <span class="material-icons-outlined">{{ cat.icon }}</span>
                         <span>{{ cat.name }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <div class="prompt-ideas">
+                    {% for idea in prompt_ideas %}
+                    <button class="idea-chip"
+                            data-category="{{ idea.category }}"
+                            data-description="{{ idea.description }}">
+                        <span class="material-icons-outlined">bolt</span>
+                        <span>{{ idea.label }}</span>
                     </button>
                     {% endfor %}
                 </div>
@@ -80,6 +91,18 @@
 
             <!-- Output Panel -->
             <section class="output-panel" id="outputPanel" style="display: none;">
+
+                <!-- Validation -->
+                <div class="output-section validation-section" id="validationSection">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <span class="material-icons-outlined" id="validationIcon">verified</span>
+                            <h3>Local Validation</h3>
+                        </div>
+                        <span class="validation-score" id="validationScore">Score 0</span>
+                    </div>
+                    <div class="validation-content" id="validationOutput"></div>
+                </div>
 
                 <!-- ST Code -->
                 <div class="output-section">

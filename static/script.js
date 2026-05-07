@@ -17,6 +17,18 @@ function loadExample() {
     }
 }
 
+function loadIdea(category, description) {
+    selectCategory(category);
+    document.getElementById('description').value = description;
+    updateCharCount();
+}
+
+document.querySelectorAll('.idea-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+        loadIdea(btn.dataset.category, btn.dataset.description);
+    });
+});
+
 // Character counter
 const textarea = document.getElementById('description');
 textarea.addEventListener('input', updateCharCount);
@@ -63,6 +75,7 @@ async function generate() {
         }
 
         // Populate output
+        renderValidation(data.validation, data.repaired, data.fallback);
         document.getElementById('codeOutput').textContent = data.code || 'No code generated.';
         document.getElementById('variablesOutput').innerHTML = renderMarkdown(data.variables || 'No variable table generated.');
         document.getElementById('explanationOutput').innerHTML = renderMarkdown(data.explanation || 'No explanation generated.');
@@ -116,6 +129,68 @@ function showError(message) {
     const errorBox = document.getElementById('errorBox');
     document.getElementById('errorText').textContent = message;
     errorBox.style.display = 'flex';
+}
+
+// Render local validation results
+function renderValidation(validation, repaired, fallback) {
+    const section = document.getElementById('validationSection');
+    const icon = document.getElementById('validationIcon');
+    const score = document.getElementById('validationScore');
+    const output = document.getElementById('validationOutput');
+
+    if (!validation) {
+        section.style.display = 'none';
+        return;
+    }
+
+    const status = validation.status || 'needs_repair';
+    section.style.display = 'block';
+    section.classList.remove('passed', 'passed-with-warnings', 'needs-repair');
+    section.classList.add(status.replaceAll('_', '-'));
+
+    icon.textContent = status === 'passed' ? 'verified' : status === 'passed_with_warnings' ? 'rule' : 'report';
+    score.textContent = `Score ${validation.score ?? 0}`;
+
+    const stats = validation.stats || {};
+    const issues = validation.issues || [];
+    const badges = [];
+    if (repaired || validation.repaired) {
+        badges.push('<span class="validation-badge repaired">Auto-repaired</span>');
+    }
+    if (fallback) {
+        badges.push('<span class="validation-badge fallback">Local fallback</span>');
+    }
+
+    const issueHtml = issues.length
+        ? `<div class="validation-issues">${issues.map(renderValidationIssue).join('')}</div>`
+        : '<p class="validation-empty">No local validation issues found.</p>';
+
+    output.innerHTML = `
+        <div class="validation-summary-row">
+            <p>${escapeHtml(validation.summary || 'Validation completed.')}</p>
+            <div class="validation-badges">${badges.join('')}</div>
+        </div>
+        <div class="validation-stats">
+            <span>${stats.declared_variables ?? 0} declared vars</span>
+            <span>${stats.errors ?? 0} errors</span>
+            <span>${stats.warnings ?? 0} warnings</span>
+            <span>${stats.info ?? 0} notes</span>
+        </div>
+        ${issueHtml}
+    `;
+}
+
+function renderValidationIssue(issue) {
+    const line = issue.line ? `Line ${issue.line}` : issue.code;
+    return `
+        <div class="validation-issue ${escapeHtml(issue.severity || 'info')}">
+            <span class="issue-severity">${escapeHtml(issue.severity || 'info')}</span>
+            <div>
+                <strong>${escapeHtml(line)}</strong>
+                <p>${escapeHtml(issue.message || '')}</p>
+            </div>
+        </div>
+    `;
 }
 
 // Simple markdown renderer (handles tables, lists, bold, code)
