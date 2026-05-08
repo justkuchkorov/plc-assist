@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 server.*.log
+docs/demo-recordings/
 AGENTS.md
 CLAUDE.md
 KNOWLEDGE.md

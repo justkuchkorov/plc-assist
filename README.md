@@ -109,8 +109,9 @@ Render settings:
 - Start command: `gunicorn app:app --bind 0.0.0.0:$PORT`
 - Health check: `/healthz`
 - Optional secret: `GEMINI_API_KEY`
+- Optional demo setting: `PLC_ASSIST_DEMO_MODE=1`
 
-Without `GEMINI_API_KEY`, the public demo still returns validated local fallback patterns.
+Without `GEMINI_API_KEY`, or with `PLC_ASSIST_DEMO_MODE=1`, the public demo still returns validated local fallback patterns.
 
 ## Project Structure
 

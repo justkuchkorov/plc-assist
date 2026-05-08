@@ -172,6 +172,13 @@ def generate_st_code(description: str, category: str = "general") -> dict:
 
     effective_category = infer_category(description, category)
 
+    if os.environ.get("PLC_ASSIST_DEMO_MODE", "").strip() == "1":
+        return build_fallback_result(
+            description,
+            effective_category,
+            "Demo mode is enabled, so PLC Assist returned a local validated pattern.",
+        )
+
     if not client:
         return build_fallback_result(
             description,
