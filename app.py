@@ -9,7 +9,7 @@ CATEGORIES = [
     {"id": "motor_control", "name": "Motor Control", "icon": "electric_bolt"},
     {"id": "state_machine", "name": "State Machine", "icon": "account_tree"},
     {"id": "alarm_handler", "name": "Alarm Handling", "icon": "notifications_active"},
-    {"id": "valve_control", "name": "Valve Control", "icon": "valve"},
+    {"id": "valve_control", "name": "Valve Control", "icon": "settings_input_component"},
 ]
 
 EXAMPLES = {
@@ -20,10 +20,38 @@ EXAMPLES = {
     "valve_control": "Motorized ball valve for steam header isolation. 30 second travel time, open and closed limit switches, fail-close on emergency stop.",
 }
 
+PROMPT_IDEAS = [
+    {
+        "label": "Transformer cooling PID",
+        "category": "pid_loop",
+        "description": "PID controller for transformer cooling fans. Temperature setpoint 75C, sensor fault detection, emergency stop, and 3 fan stages at 20%, 50%, and 80% cooling demand.",
+    },
+    {
+        "label": "Pump motor lockout",
+        "category": "motor_control",
+        "description": "Pump motor start/stop with emergency stop, overload relay, run feedback timeout after 3 seconds, manual reset, and no automatic restart after fault.",
+    },
+    {
+        "label": "Steam isolation valve",
+        "category": "valve_control",
+        "description": "Motorized steam isolation valve with open and closed limit switches, 30 second travel timeout, emergency stop, and never energize open and close outputs together.",
+    },
+    {
+        "label": "Bottle station sequence",
+        "category": "state_machine",
+        "description": "Bottle filling station sequence: idle, fill until level sensor, cap with cylinder, eject to conveyor, fault state on timeout, and emergency stop from any state.",
+    },
+]
+
 
 @app.route("/")
 def index():
-    return render_template("index.html", categories=CATEGORIES, examples=EXAMPLES)
+    return render_template(
+        "index.html",
+        categories=CATEGORIES,
+        examples=EXAMPLES,
+        prompt_ideas=PROMPT_IDEAS,
+    )
 
 
 @app.route("/generate", methods=["POST"])

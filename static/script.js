@@ -1,4 +1,5 @@
 let selectedCategory = 'general';
+let lastResult = null;
 
 // Category selection
 function selectCategory(id) {
@@ -15,6 +16,51 @@ function loadExample() {
         document.getElementById('description').value = example;
         updateCharCount();
     }
+}
+
+function loadIdea(category, description) {
+    selectCategory(category);
+    document.getElementById('description').value = description;
+    updateCharCount();
+}
+
+document.querySelectorAll('.idea-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+        loadIdea(btn.dataset.category, btn.dataset.description);
+    });
+});
+
+document.getElementById('buildPromptBtn').addEventListener('click', buildPromptFromFields);
+document.getElementById('clearBuilderBtn').addEventListener('click', clearBuilder);
+
+function buildPromptFromFields() {
+    const equipment = getFieldValue('builderEquipment');
+    const goal = getFieldValue('builderGoal');
+    const inputs = getFieldValue('builderInputs');
+    const outputs = getFieldValue('builderOutputs');
+    const faults = getFieldValue('builderFaults');
+    const safety = getFieldValue('builderSafety');
+    const lines = [
+        equipment ? `Equipment: ${equipment}` : '',
+        goal ? `Goal: ${goal}` : '',
+        inputs ? `Inputs: ${inputs}` : '',
+        outputs ? `Outputs: ${outputs}` : '',
+        faults ? `Faults and alarms: ${faults}` : '',
+        safety ? `Safety and reset behavior: ${safety}` : '',
+        `Generate CODESYS IEC 61131-3 Structured Text for this ${selectedCategory.replaceAll('_', ' ')} application. Include declarations, safe defaults, validation, explanation, and warnings.`
+    ].filter(Boolean);
+
+    document.getElementById('description').value = lines.join('\n');
+    updateCharCount();
+}
+
+function clearBuilder() {
+    ['builderEquipment', 'builderGoal', 'builderInputs', 'builderOutputs', 'builderFaults', 'builderSafety']
+        .forEach(id => { document.getElementById(id).value = ''; });
+}
+
+function getFieldValue(id) {
+    return document.getElementById(id).value.trim();
 }
 
 // Character counter
@@ -62,7 +108,10 @@ async function generate() {
             return;
         }
 
+        lastResult = data;
+
         // Populate output
+        renderValidation(data.validation, data.repaired, data.fallback);
         document.getElementById('codeOutput').textContent = data.code || 'No code generated.';
         document.getElementById('variablesOutput').innerHTML = renderMarkdown(data.variables || 'No variable table generated.');
         document.getElementById('explanationOutput').innerHTML = renderMarkdown(data.explanation || 'No explanation generated.');
@@ -86,7 +135,7 @@ async function generate() {
 // Copy code to clipboard
 async function copyCode() {
     const code = document.getElementById('codeOutput').textContent;
-    const btn = document.querySelector('.copy-btn');
+    const btn = document.getElementById('copyCodeBtn');
 
     try {
         await navigator.clipboard.writeText(code);
@@ -111,11 +160,130 @@ async function copyCode() {
     }
 }
 
+function downloadCode() {
+    const code = document.getElementById('codeOutput').textContent;
+    if (!code || code === 'No code generated.') return;
+    downloadText(code, buildFileBaseName() + '.st');
+}
+
+function downloadReport() {
+    if (!lastResult) return;
+
+    const validation = lastResult.validation || {};
+    const stats = validation.stats || {};
+    const issues = validation.issues || [];
+    const issueText = issues.length
+        ? issues.map(issue => `- ${issue.severity}: ${issue.message}${issue.line ? ` (line ${issue.line})` : ''}`).join('\n')
+        : '- No local validation issues found.';
+    const report = [
+        'PLC Assist Validation Report',
+        '',
+        `Status: ${validation.status || 'unknown'}`,
+        `Score: ${validation.score ?? 'n/a'}`,
+        `Source: ${lastResult.fallback ? 'Local fallback' : lastResult.repaired ? 'AI repaired' : 'AI generated'}`,
+        `Category: ${lastResult.effective_category || selectedCategory}`,
+        '',
+        'Stats',
+        `- Declared variables: ${stats.declared_variables ?? 0}`,
+        `- Errors: ${stats.errors ?? 0}`,
+        `- Warnings: ${stats.warnings ?? 0}`,
+        `- Notes: ${stats.info ?? 0}`,
+        '',
+        'Issues',
+        issueText,
+        '',
+        'Safety Warnings',
+        lastResult.warnings || 'No warnings.'
+    ].join('\n');
+
+    downloadText(report, buildFileBaseName() + '-validation-report.txt');
+}
+
+function downloadText(text, filename) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function buildFileBaseName() {
+    const category = (lastResult && lastResult.effective_category) || selectedCategory || 'plc';
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+    return `plc-assist-${category}-${timestamp}`;
+}
+
 // Show error
 function showError(message) {
     const errorBox = document.getElementById('errorBox');
     document.getElementById('errorText').textContent = message;
     errorBox.style.display = 'flex';
+}
+
+// Render local validation results
+function renderValidation(validation, repaired, fallback) {
+    const section = document.getElementById('validationSection');
+    const icon = document.getElementById('validationIcon');
+    const score = document.getElementById('validationScore');
+    const output = document.getElementById('validationOutput');
+
+    if (!validation) {
+        section.style.display = 'none';
+        return;
+    }
+
+    const status = validation.status || 'needs_repair';
+    section.style.display = 'block';
+    section.classList.remove('passed', 'passed-with-warnings', 'needs-repair');
+    section.classList.add(status.replaceAll('_', '-'));
+
+    icon.textContent = status === 'passed' ? 'verified' : status === 'passed_with_warnings' ? 'rule' : 'report';
+    score.textContent = `Score ${validation.score ?? 0}`;
+
+    const stats = validation.stats || {};
+    const issues = validation.issues || [];
+    const badges = [];
+    if (repaired || validation.repaired) {
+        badges.push('<span class="validation-badge repaired">Auto-repaired</span>');
+    }
+    if (fallback) {
+        badges.push('<span class="validation-badge fallback">Local fallback</span>');
+    }
+
+    const issueHtml = issues.length
+        ? `<div class="validation-issues">${issues.map(renderValidationIssue).join('')}</div>`
+        : '<p class="validation-empty">No local validation issues found.</p>';
+
+    output.innerHTML = `
+        <div class="validation-summary-row">
+            <p>${escapeHtml(validation.summary || 'Validation completed.')}</p>
+            <div class="validation-badges">${badges.join('')}</div>
+        </div>
+        <div class="validation-stats">
+            <span>${stats.declared_variables ?? 0} declared vars</span>
+            <span>${stats.errors ?? 0} errors</span>
+            <span>${stats.warnings ?? 0} warnings</span>
+            <span>${stats.info ?? 0} notes</span>
+        </div>
+        ${issueHtml}
+    `;
+}
+
+function renderValidationIssue(issue) {
+    const line = issue.line ? `Line ${issue.line}` : issue.code;
+    return `
+        <div class="validation-issue ${escapeHtml(issue.severity || 'info')}">
+            <span class="issue-severity">${escapeHtml(issue.severity || 'info')}</span>
+            <div>
+                <strong>${escapeHtml(line)}</strong>
+                <p>${escapeHtml(issue.message || '')}</p>
+            </div>
+        </div>
+    `;
 }
 
 // Simple markdown renderer (handles tables, lists, bold, code)
