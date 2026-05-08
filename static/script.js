@@ -1,4 +1,5 @@
 let selectedCategory = 'general';
+let lastResult = null;
 
 // Category selection
 function selectCategory(id) {
@@ -28,6 +29,39 @@ document.querySelectorAll('.idea-chip').forEach(btn => {
         loadIdea(btn.dataset.category, btn.dataset.description);
     });
 });
+
+document.getElementById('buildPromptBtn').addEventListener('click', buildPromptFromFields);
+document.getElementById('clearBuilderBtn').addEventListener('click', clearBuilder);
+
+function buildPromptFromFields() {
+    const equipment = getFieldValue('builderEquipment');
+    const goal = getFieldValue('builderGoal');
+    const inputs = getFieldValue('builderInputs');
+    const outputs = getFieldValue('builderOutputs');
+    const faults = getFieldValue('builderFaults');
+    const safety = getFieldValue('builderSafety');
+    const lines = [
+        equipment ? `Equipment: ${equipment}` : '',
+        goal ? `Goal: ${goal}` : '',
+        inputs ? `Inputs: ${inputs}` : '',
+        outputs ? `Outputs: ${outputs}` : '',
+        faults ? `Faults and alarms: ${faults}` : '',
+        safety ? `Safety and reset behavior: ${safety}` : '',
+        `Generate CODESYS IEC 61131-3 Structured Text for this ${selectedCategory.replaceAll('_', ' ')} application. Include declarations, safe defaults, validation, explanation, and warnings.`
+    ].filter(Boolean);
+
+    document.getElementById('description').value = lines.join('\n');
+    updateCharCount();
+}
+
+function clearBuilder() {
+    ['builderEquipment', 'builderGoal', 'builderInputs', 'builderOutputs', 'builderFaults', 'builderSafety']
+        .forEach(id => { document.getElementById(id).value = ''; });
+}
+
+function getFieldValue(id) {
+    return document.getElementById(id).value.trim();
+}
 
 // Character counter
 const textarea = document.getElementById('description');
@@ -74,6 +108,8 @@ async function generate() {
             return;
         }
 
+        lastResult = data;
+
         // Populate output
         renderValidation(data.validation, data.repaired, data.fallback);
         document.getElementById('codeOutput').textContent = data.code || 'No code generated.';
@@ -99,7 +135,7 @@ async function generate() {
 // Copy code to clipboard
 async function copyCode() {
     const code = document.getElementById('codeOutput').textContent;
-    const btn = document.querySelector('.copy-btn');
+    const btn = document.getElementById('copyCodeBtn');
 
     try {
         await navigator.clipboard.writeText(code);
@@ -122,6 +158,63 @@ async function copyCode() {
             btn.innerHTML = '<span class="material-icons-outlined">content_copy</span> Copy';
         }, 2000);
     }
+}
+
+function downloadCode() {
+    const code = document.getElementById('codeOutput').textContent;
+    if (!code || code === 'No code generated.') return;
+    downloadText(code, buildFileBaseName() + '.st');
+}
+
+function downloadReport() {
+    if (!lastResult) return;
+
+    const validation = lastResult.validation || {};
+    const stats = validation.stats || {};
+    const issues = validation.issues || [];
+    const issueText = issues.length
+        ? issues.map(issue => `- ${issue.severity}: ${issue.message}${issue.line ? ` (line ${issue.line})` : ''}`).join('\n')
+        : '- No local validation issues found.';
+    const report = [
+        'PLC Assist Validation Report',
+        '',
+        `Status: ${validation.status || 'unknown'}`,
+        `Score: ${validation.score ?? 'n/a'}`,
+        `Source: ${lastResult.fallback ? 'Local fallback' : lastResult.repaired ? 'AI repaired' : 'AI generated'}`,
+        `Category: ${lastResult.effective_category || selectedCategory}`,
+        '',
+        'Stats',
+        `- Declared variables: ${stats.declared_variables ?? 0}`,
+        `- Errors: ${stats.errors ?? 0}`,
+        `- Warnings: ${stats.warnings ?? 0}`,
+        `- Notes: ${stats.info ?? 0}`,
+        '',
+        'Issues',
+        issueText,
+        '',
+        'Safety Warnings',
+        lastResult.warnings || 'No warnings.'
+    ].join('\n');
+
+    downloadText(report, buildFileBaseName() + '-validation-report.txt');
+}
+
+function downloadText(text, filename) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function buildFileBaseName() {
+    const category = (lastResult && lastResult.effective_category) || selectedCategory || 'plc';
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+    return `plc-assist-${category}-${timestamp}`;
 }
 
 // Show error

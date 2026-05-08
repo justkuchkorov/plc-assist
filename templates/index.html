@@ -56,6 +56,51 @@
                     {% endfor %}
                 </div>
 
+                <div class="builder-panel">
+                    <div class="builder-header">
+                        <div class="section-title">
+                            <span class="material-icons-outlined">tune</span>
+                            <h3>Requirement Builder</h3>
+                        </div>
+                        <div class="builder-actions">
+                            <button class="secondary-btn" id="clearBuilderBtn" type="button">
+                                <span class="material-icons-outlined">backspace</span>
+                                Clear
+                            </button>
+                            <button class="secondary-btn primary" id="buildPromptBtn" type="button">
+                                <span class="material-icons-outlined">playlist_add_check</span>
+                                Build Prompt
+                            </button>
+                        </div>
+                    </div>
+                    <div class="builder-grid">
+                        <label>
+                            <span>Equipment</span>
+                            <input id="builderEquipment" type="text" placeholder="Transformer cooling fans">
+                        </label>
+                        <label>
+                            <span>Goal</span>
+                            <input id="builderGoal" type="text" placeholder="Maintain transformer oil temperature at 75C">
+                        </label>
+                        <label>
+                            <span>Inputs</span>
+                            <textarea id="builderInputs" rows="3" placeholder="Temperature sensor, E-stop OK, fan feedback"></textarea>
+                        </label>
+                        <label>
+                            <span>Outputs</span>
+                            <textarea id="builderOutputs" rows="3" placeholder="Fan stage 1, fan stage 2, fan stage 3"></textarea>
+                        </label>
+                        <label>
+                            <span>Faults</span>
+                            <textarea id="builderFaults" rows="3" placeholder="Sensor fault, fan feedback timeout, overtemperature"></textarea>
+                        </label>
+                        <label>
+                            <span>Safety / Reset</span>
+                            <textarea id="builderSafety" rows="3" placeholder="Emergency stop priority, manual reset after fault, no auto restart"></textarea>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Description Input -->
                 <div class="input-group">
                     <textarea id="description"
@@ -111,10 +156,20 @@
                             <span class="material-icons-outlined">code</span>
                             <h3>Structured Text Code</h3>
                         </div>
-                        <button class="copy-btn" onclick="copyCode()">
-                            <span class="material-icons-outlined">content_copy</span>
-                            Copy
-                        </button>
+                        <div class="output-actions">
+                            <button class="copy-btn" onclick="downloadCode()">
+                                <span class="material-icons-outlined">download</span>
+                                .st
+                            </button>
+                            <button class="copy-btn" onclick="downloadReport()">
+                                <span class="material-icons-outlined">fact_check</span>
+                                Report
+                            </button>
+                            <button class="copy-btn" id="copyCodeBtn" onclick="copyCode()">
+                                <span class="material-icons-outlined">content_copy</span>
+                                Copy
+                            </button>
+                        </div>
                     </div>
                     <pre class="code-block"><code id="codeOutput"></code></pre>
                 </div>
