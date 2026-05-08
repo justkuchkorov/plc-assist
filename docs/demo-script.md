@@ -2,6 +2,8 @@
 
 Target length: 60-90 seconds.
 
+Public demo: https://plc-assist.onrender.com/
+
 ## Story
 
 Generic LLMs can write PLC-looking code, but PLC engineers need CODESYS-style declarations, safety behavior, timer patterns, and reviewable outputs. PLC Assist is a focused AI tool for that workflow.
@@ -30,4 +32,3 @@ Generic LLMs can write PLC-looking code, but PLC engineers need CODESYS-style de
 - Keep the demo honest: say "local validation" rather than "guaranteed compile."
 - Do not claim this is certified for real equipment.
 - Strong phrase: "PLC-looking code is easy. PLC-reviewable code is the hard part."
-

@@ -4,6 +4,8 @@ AI-assisted IEC 61131-3 Structured Text generation for CODESYS, with local valid
 
 PLC Assist is built around a simple idea: generic LLMs can produce PLC-looking code, but industrial automation engineers need code that is structured, declared, safety-aware, and reviewable. PLC Assist turns requirements into Structured Text, validates common PLC-specific failure modes, and returns code with a variable table, explanation, warnings, and a validation report.
 
+Live demo: https://plc-assist.onrender.com/
+
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/justkuchkorov/plc-assist)
 
 ## Why This Exists
@@ -39,6 +41,8 @@ PLC Assist currently checks for:
 This is not a replacement for a real CODESYS compiler or PLC engineer review. It is a quality gate that catches common LLM mistakes before the user sees the output.
 
 ## Demo Flow
+
+Public app: https://plc-assist.onrender.com/
 
 1. Open the app.
 2. Choose **PID Control Loop** or click **Transformer cooling PID**.
