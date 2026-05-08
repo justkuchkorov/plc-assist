@@ -1,33 +1,79 @@
 # PLC Assist
 
-AI-powered IEC 61131-3 Structured Text code generator for CODESYS. Describe what you need in plain English — get production-ready PLC code with variable tables, logic explanations, and safety warnings.
+AI-assisted IEC 61131-3 Structured Text generation for CODESYS, with local validation and demo-safe fallback patterns.
+
+PLC Assist is built around a simple idea: generic LLMs can produce PLC-looking code, but industrial automation engineers need code that is structured, declared, safety-aware, and reviewable. PLC Assist turns requirements into Structured Text, validates common PLC-specific failure modes, and returns code with a variable table, explanation, warnings, and a validation report.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/justkuchkorov/plc-assist)
 
 ## Why This Exists
 
-Writing Structured Text from scratch is slow and error-prone. Generic LLMs produce code that won't compile in CODESYS — wrong data types, missing declarations, no safety logic. PLC Assist is purpose-built for industrial automation: every output follows IEC 61131-3 standards, CODESYS naming conventions, and real-world safety practices.
+Writing Structured Text from scratch is slow and error-prone. Generic chatbots often produce code that will not compile in CODESYS: wrong data types, missing declarations, weak safety behavior, or suspicious timer/state-machine logic.
 
-## Features
+PLC Assist is a narrow tool for industrial automation workflows. It is intended to become the "DeepL for PLC code": specialized, structured, and more reliable than a general-purpose model for this one job.
 
-- **6 specialized categories** — PID control, motor control, state machines, alarm handling, valve control, or general/custom
-- **Template-guided generation** — each category has a domain-specific template that ensures correct structure
-- **Safety-first** — emergency stops, fail-safe defaults, interlocks, and sensor validation baked in
-- **CODESYS V3.5+ compatible** — proper `PROGRAM`/`FUNCTION_BLOCK` structure, correct types (`REAL` not `float`), standard library FBs (TON, TOF, R_TRIG, etc.)
-- **Structured output** — code + variable table + step-by-step explanation + safety warnings
-- **Local validation layer** - checks generated ST for undeclared variables, invalid CODESYS types, block balance, syntax slips, and basic safety patterns
-- **Auto-repair pass** - if validation finds errors, the app asks the model to repair the code before showing it
-- **Curated few-shot examples** - original motor, PID, valve, and state-machine examples feed the model clean CODESYS patterns before generation
-- **Retry logic** — handles Gemini API rate limits with exponential backoff
+## What It Does
+
+- Generates IEC 61131-3 Structured Text for CODESYS.
+- Guides users with categories and a structured Requirement Builder.
+- Uses category templates and curated few-shot examples for PID, motor, valve, and state-machine logic.
+- Validates generated code for local PLC-specific issues.
+- Runs one AI repair pass if validation fails.
+- Falls back to local validated patterns when Gemini is unavailable, slow, or still fails validation.
+- Exports generated code as `.st`.
+- Exports a validation report as `.txt`.
+
+## Validation Checks
+
+PLC Assist currently checks for:
+
+- missing `PROGRAM` / `FUNCTION_BLOCK` structure
+- unbalanced `IF`, `CASE`, loop, and `VAR` blocks
+- undeclared identifiers
+- invalid CODESYS data types such as `float` or lowercase `int`
+- assignment mistakes such as `=` instead of `:=`
+- missing semicolons in likely statement lines
+- missing safety patterns for physical outputs
+- suspicious state-machine patterns, including timer member assignment and timer self-reference
+
+This is not a replacement for a real CODESYS compiler or PLC engineer review. It is a quality gate that catches common LLM mistakes before the user sees the output.
+
+## Demo Flow
+
+1. Open the app.
+2. Choose **PID Control Loop** or click **Transformer cooling PID**.
+3. Optionally use the Requirement Builder to specify equipment, inputs, outputs, faults, and reset behavior.
+4. Generate Structured Text.
+5. Review the Local Validation panel.
+6. Download the `.st` file and validation report.
 
 ## Tech Stack
 
 | Component | Choice |
 |-----------|--------|
-| Backend | Flask (Python) |
+| Backend | Flask |
 | LLM | Gemini 2.5 Flash |
-| Prompts | 3-layer system (IEC rules + CODESYS specifics + safety rules) |
-| Templates | Category-specific MD files guiding output structure |
-| Examples | Original few-shot Structured Text patterns for high-signal categories |
-| Frontend | Vanilla HTML/CSS/JS with Material Icons |
+| Production server | Gunicorn |
+| Prompts | IEC rules + CODESYS rules + safety rules |
+| Templates | Category-specific Markdown templates |
+| Examples | Curated few-shot ST patterns |
+| Frontend | Vanilla HTML/CSS/JS |
+| Deployment | Render-ready `render.yaml` |
+
+## Architecture
+
+```text
+Browser UI
+  -> POST /generate
+  -> generator.py
+  -> Gemini call with timeout
+  -> parse CODE / VARIABLES / EXPLANATION / WARNINGS
+  -> validator.py local checks
+  -> optional AI repair pass
+  -> fallback pattern if model unavailable or still invalid
+  -> JSON response
+  -> UI renders code, validation, report, downloads
+```
 
 ## Quick Start
 
@@ -38,57 +84,69 @@ pip install -r requirements.txt
 ```
 
 Create `.env`:
-```
+
+```env
 GEMINI_API_KEY=your_key_here
 ```
 
-Run:
+Run locally:
+
 ```bash
 python app.py
 ```
 
-Open `http://localhost:5001` — pick a category, describe your requirement, get code.
+Open `http://localhost:5001`.
 
-## Example
+If `GEMINI_API_KEY` is not set, the app still works in local fallback mode for supported categories.
 
-**Input:** "PID controller for tank water level. Setpoint 75%, 4-20mA level transmitter input, control output to proportional valve CV-101. Alarm at 90% high and 10% low."
+## Deploy On Render
 
-**Output:** Complete FUNCTION_BLOCK with PID logic, analog scaling, alarm comparators, variable declarations table, and safety warnings about sensor failure modes.
+The repo includes `render.yaml`.
+
+Render settings:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn app:app --bind 0.0.0.0:$PORT`
+- Health check: `/healthz`
+- Optional secret: `GEMINI_API_KEY`
+
+Without `GEMINI_API_KEY`, the public demo still returns validated local fallback patterns.
 
 ## Project Structure
 
-```
+```text
 plc-assist/
-├── app.py              Flask app — routes, categories, examples
+├── app.py              Flask app, routes, categories, prompt ideas
 ├── config.py           API key + model config
-├── generator.py        Gemini code generation + response parsing
-├── validator.py        Local ST validation + confidence scoring
+├── generator.py        LLM generation, repair loop, fallback routing
+├── validator.py        Local Structured Text validation
+├── fallbacks.py        Local validated demo patterns
 ├── examples/           Few-shot examples injected by category
-├── prompts/
-│   ├── system.md       IEC 61131-3 rules, naming conventions, output format
-│   ├── codesys.md      CODESYS-specific rules
-│   └── safety.md       Safety rules for industrial code
-├── templates/
-│   ├── index.html      Web UI
-│   ├── pid_loop.md     PID template
-│   ├── motor_control.md
-│   ├── state_machine.md
-│   ├── alarm_handler.md
-│   └── valve_control.md
-└── static/
-    ├── script.js
-    └── style.css
+├── prompts/            System, CODESYS, and safety rules
+├── templates/          Web UI and generation templates
+├── static/             Frontend JS/CSS
+├── test_validator.py   Focused validator tests
+├── render.yaml         Render deployment blueprint
+└── requirements.txt    Python dependencies
 ```
 
 ## Roadmap
 
-- [x] Local validation (undeclared variables, CODESYS types, block balance, safety hints)
-- [x] Few-shot examples for motor, PID, valve, and state-machine control
-- [ ] CODESYS compile-check before returning
-- [ ] Expand examples with license-reviewed real industrial patterns
-- [ ] Export to CODESYS `.export` format
-- [ ] Multi-language input (describe in any language, get ST code)
-- [ ] Code review mode (paste existing ST, get improvement suggestions)
+- [x] Local validation
+- [x] AI repair pass
+- [x] Local fallback patterns
+- [x] Structured Requirement Builder
+- [x] `.st` and validation report downloads
+- [x] Few-shot examples for PID, motor, valve, and state machines
+- [ ] Public demo deployment
+- [ ] Evaluation benchmark across 20-50 PLC prompts
+- [ ] Code Review mode for existing Structured Text
+- [ ] CODESYS compile/export readiness
+- [ ] Siemens TIA Portal / SCL support
+
+## Safety Note
+
+Generated code must be reviewed and tested in CODESYS before being used on real equipment. PLC Assist is a coding assistant and validation layer, not a certified safety system.
 
 ## License
 

@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, render_template, request, jsonify
 from generator import generate_st_code
 
@@ -54,6 +56,11 @@ def index():
     )
 
 
+@app.route("/healthz")
+def healthz():
+    return jsonify({"status": "ok"})
+
+
 @app.route("/generate", methods=["POST"])
 def generate():
     data = request.get_json()
@@ -72,4 +79,5 @@ def generate():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5001)
+    port = int(os.environ.get("PORT", "5001"))
+    app.run(debug=False, host="0.0.0.0", port=port)
