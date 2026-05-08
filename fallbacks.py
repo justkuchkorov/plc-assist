@@ -26,6 +26,8 @@ def build_fallback_result(description: str, category: str, reason: str = "") -> 
         result = _pid_transformer_fallback()
     elif effective_category == "motor_control":
         result = _motor_fallback()
+    elif effective_category == "state_machine":
+        result = _state_machine_fallback()
     elif effective_category == "valve_control":
         result = _valve_fallback()
     else:
@@ -284,6 +286,113 @@ END_FUNCTION_BLOCK"""
         "variables": "| Name | Type | Direction | Description |\n|------|------|-----------|-------------|\n| bOpenCmd/bCloseCmd | BOOL | Input | Valve movement commands |\n| bEStopOk | BOOL | Input | Emergency stop healthy signal |\n| bOpenOutput/bCloseOutput | BOOL | Output | Solenoid commands |\n| bFault | BOOL | Output | Fault active flag |",
         "explanation": "1. E-stop de-energizes both solenoids.\n2. Both limit switches active creates a sensor fault.\n3. Open and close outputs are mutually exclusive.\n4. Travel timeout creates a fault.",
         "warnings": "Confirm the valve fail-safe position and travel timeout with the real actuator datasheet.",
+        "raw": "",
+        "repaired": False,
+    }
+
+
+def _state_machine_fallback() -> dict:
+    code = """FUNCTION_BLOCK BottleFillingStation
+VAR_INPUT
+    bStart : BOOL;
+    bReset : BOOL;
+    bEStopOk : BOOL;
+    bBottlePresent : BOOL;
+    bLevelReached : BOOL;
+    bCapDone : BOOL;
+    bEjectDone : BOOL;
+END_VAR
+VAR_OUTPUT
+    bFillValve : BOOL;
+    bCapCylinder : BOOL;
+    bEjectCylinder : BOOL;
+    bFault : BOOL;
+    iFaultCode : INT;
+    iState : INT;
+END_VAR
+VAR
+    rtrigStart : R_TRIG;
+    rtrigReset : R_TRIG;
+    tonFill : TON;
+    tonCap : TON;
+    tonEject : TON;
+END_VAR
+
+IF NOT bEStopOk THEN
+    bFillValve := FALSE;
+    bCapCylinder := FALSE;
+    bEjectCylinder := FALSE;
+    bFault := TRUE;
+    iFaultCode := 1;
+    iState := 900;
+    RETURN;
+END_IF
+
+rtrigReset(CLK := bReset);
+IF rtrigReset.Q AND bEStopOk THEN
+    bFault := FALSE;
+    iFaultCode := 0;
+    iState := 0;
+END_IF
+
+bFillValve := FALSE;
+bCapCylinder := FALSE;
+bEjectCylinder := FALSE;
+
+rtrigStart(CLK := bStart);
+tonFill(IN := iState = 10, PT := T#10S);
+tonCap(IN := iState = 20, PT := T#3S);
+tonEject(IN := iState = 30, PT := T#3S);
+
+CASE iState OF
+    0:
+        IF rtrigStart.Q AND bBottlePresent AND NOT bFault THEN
+            iState := 10;
+        END_IF
+
+    10:
+        bFillValve := TRUE;
+        IF bLevelReached THEN
+            iState := 20;
+        ELSIF tonFill.Q THEN
+            bFault := TRUE;
+            iFaultCode := 2;
+            iState := 900;
+        END_IF
+
+    20:
+        bCapCylinder := TRUE;
+        IF bCapDone THEN
+            iState := 30;
+        ELSIF tonCap.Q THEN
+            bFault := TRUE;
+            iFaultCode := 3;
+            iState := 900;
+        END_IF
+
+    30:
+        bEjectCylinder := TRUE;
+        IF bEjectDone THEN
+            iState := 0;
+        ELSIF tonEject.Q THEN
+            bFault := TRUE;
+            iFaultCode := 4;
+            iState := 900;
+        END_IF
+
+    900:
+        bFillValve := FALSE;
+        bCapCylinder := FALSE;
+        bEjectCylinder := FALSE;
+        bFault := TRUE;
+END_CASE
+
+END_FUNCTION_BLOCK"""
+    return {
+        "code": code,
+        "variables": "| Name | Type | Direction | Description |\n|------|------|-----------|-------------|\n| bStart/bReset | BOOL | Input | Operator commands |\n| bEStopOk | BOOL | Input | Emergency stop healthy signal |\n| bBottlePresent | BOOL | Input | Bottle present sensor |\n| bLevelReached | BOOL | Input | Fill level reached sensor |\n| bFillValve | BOOL | Output | Fill valve command |\n| bCapCylinder | BOOL | Output | Capping cylinder command |\n| bEjectCylinder | BOOL | Output | Eject cylinder command |\n| bFault | BOOL | Output | Fault active flag |\n| iFaultCode | INT | Output | 1 E-stop, 2 fill timeout, 3 cap timeout, 4 eject timeout |",
+        "explanation": "1. Emergency stop forces all outputs safe and enters fault state.\n2. Outputs default to safe values before the CASE block.\n3. Each active state has its own timer function block.\n4. Timeout faults move the sequence to state 900.\n5. Reset clears faults only when E-stop is healthy.",
+        "warnings": "Add real feedback sensors for cap/eject extend and retract positions before using on hardware.",
         "raw": "",
         "repaired": False,
     }

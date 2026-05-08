@@ -15,7 +15,7 @@ Writing Structured Text from scratch is slow and error-prone. Generic LLMs produ
 - **Structured output** — code + variable table + step-by-step explanation + safety warnings
 - **Local validation layer** - checks generated ST for undeclared variables, invalid CODESYS types, block balance, syntax slips, and basic safety patterns
 - **Auto-repair pass** - if validation finds errors, the app asks the model to repair the code before showing it
-- **Curated few-shot examples** - original motor, PID, and valve examples feed the model clean CODESYS patterns before generation
+- **Curated few-shot examples** - original motor, PID, valve, and state-machine examples feed the model clean CODESYS patterns before generation
 - **Retry logic** — handles Gemini API rate limits with exponential backoff
 
 ## Tech Stack
@@ -83,7 +83,7 @@ plc-assist/
 ## Roadmap
 
 - [x] Local validation (undeclared variables, CODESYS types, block balance, safety hints)
-- [x] Few-shot examples for motor, PID, and valve control
+- [x] Few-shot examples for motor, PID, valve, and state-machine control
 - [ ] CODESYS compile-check before returning
 - [ ] Expand examples with license-reviewed real industrial patterns
 - [ ] Export to CODESYS `.export` format

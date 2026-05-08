@@ -167,6 +167,7 @@ def validate_st_code(code: str, description: str = "", category: str = "general"
     _check_assignment_syntax(lines, issues)
     _check_semicolons(lines, issues)
     _check_safety_patterns(clean_code, description, category, issues)
+    _check_state_machine_patterns(clean_code, lines, category, issues)
 
     return _result(issues, declared=declared, used=used, repaired=False)
 
@@ -377,6 +378,8 @@ def _check_semicolons(lines: list[str], issues: list[Issue]) -> None:
         upper = line.upper()
         if upper.startswith(no_semicolon_prefixes):
             continue
+        if re.match(r"^(?:\d+|[A-Za-z_][\w]*)\s*:\s*$", line):
+            continue
         if ":" in line and re.match(r"^[A-Za-z_][\w]*(?:\s*,\s*[A-Za-z_][\w]*)*\s*:", line):
             continue
         if not line.endswith(";"):
@@ -419,6 +422,66 @@ def _check_safety_patterns(code: str, description: str, category: str, issues: l
                     "No timer function block detected; many real devices need feedback timeout or delay logic.",
                 )
             )
+
+
+def _check_state_machine_patterns(code: str, lines: list[str], category: str, issues: list[Issue]) -> None:
+    code_lower = code.lower()
+    looks_like_state_machine = category == "state_machine" or "case " in code_lower or "istate" in code_lower
+    if not looks_like_state_machine:
+        return
+
+    for line_number, raw_line in enumerate(lines, start=1):
+        line = raw_line.strip()
+
+        if re.search(r"\bton\w+\.(IN|PT|ET|Q)\s*:=", line, re.IGNORECASE):
+            issues.append(
+                Issue(
+                    "error",
+                    "timer_member_assignment",
+                    "Do not assign timer internals like tonTimer.PT or tonTimer.IN; call the FB with named parameters instead.",
+                    line_number,
+                )
+            )
+
+        if re.search(r"\bton\w+\s*\([^)]*\bton\w+\.(IN|PT)\b", line, re.IGNORECASE):
+            issues.append(
+                Issue(
+                    "error",
+                    "timer_self_reference",
+                    "Timer calls should not feed tonTimer.IN/PT back into the same timer call.",
+                    line_number,
+                )
+            )
+
+        if re.search(r"\bbStateEntry\s*:=\s*FALSE\s*;", line, re.IGNORECASE):
+            issues.append(
+                Issue(
+                    "warning",
+                    "state_entry_latch_risk",
+                    "Clearing bStateEntry unconditionally can skip next-state entry actions after a transition.",
+                    line_number,
+                )
+            )
+
+    if re.search(r"\bCASE\s+\w+\s+OF\b", code, re.IGNORECASE):
+        case_line = _first_line_matching(lines, r"\bCASE\s+\w+\s+OF\b")
+        prefix = "\n".join(lines[: max(0, (case_line or 1) - 1)])
+        if not re.search(r"\bb\w+(Valve|Cylinder|Motor|Cmd|Output)\w*\s*:=\s*FALSE\s*;", prefix, re.IGNORECASE):
+            issues.append(
+                Issue(
+                    "warning",
+                    "missing_safe_defaults_before_case",
+                    "State machines should set physical outputs to safe defaults before the CASE block.",
+                    case_line,
+                )
+            )
+
+
+def _first_line_matching(lines: list[str], pattern: str) -> int | None:
+    for line_number, line in enumerate(lines, start=1):
+        if re.search(pattern, line, re.IGNORECASE):
+            return line_number
+    return None
 
 
 def _strip_comments(code: str) -> str:

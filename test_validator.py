@@ -108,6 +108,48 @@ END_PROGRAM
                     f"{path.name} example has validation errors: {result['issues']}",
                 )
 
+    def test_state_machine_timer_member_access_is_flagged(self):
+        code = """
+PROGRAM BottleStation
+VAR
+    bStart : BOOL;
+    bFillValveOpenCmd : BOOL;
+    bStateEntry : BOOL;
+    iState : INT;
+    tonStateTimeout : TON;
+END_VAR
+
+IF bStateEntry THEN
+    tonStateTimeout.PT := T#10S;
+END_IF
+
+CASE iState OF
+    0:
+        IF bStart THEN
+            iState := 10;
+            bStateEntry := TRUE;
+        END_IF
+    10:
+        bFillValveOpenCmd := TRUE;
+        IF tonStateTimeout.Q THEN
+            iState := 900;
+        END_IF
+END_CASE
+
+bStateEntry := FALSE;
+tonStateTimeout(IN := tonStateTimeout.IN, PT := tonStateTimeout.PT);
+
+END_PROGRAM
+"""
+
+        result = validate_st_code(code, "Bottle filling station sequence", "state_machine")
+        issue_codes = {issue["code"] for issue in result["issues"]}
+
+        self.assertEqual(result["status"], "needs_repair")
+        self.assertIn("timer_member_assignment", issue_codes)
+        self.assertIn("timer_self_reference", issue_codes)
+        self.assertIn("state_entry_latch_risk", issue_codes)
+
 
 if __name__ == "__main__":
     unittest.main()

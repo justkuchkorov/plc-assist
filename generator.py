@@ -50,6 +50,7 @@ def _load_examples(category: str) -> str:
     example_map = {
         "pid_loop": "pid_loop.md",
         "motor_control": "motor_control.md",
+        "state_machine": "state_machine.md",
         "valve_control": "valve_control.md",
     }
     filename = example_map.get(category)
